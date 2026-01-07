@@ -142,6 +142,15 @@
         background: #d0d0d0;
       }
 
+      .clear-btn.confirm {
+        background: #e53935;
+        color: white;
+      }
+
+      .clear-btn.confirm:hover {
+        background: #c62828;
+      }
+
       .summary-modal {
         display: none;
         position: fixed;
@@ -203,7 +212,7 @@
       }
     </style>
   </head>
-  <body>
+  <body _="on click if target does not match .clear-btn then call resetClearButton()">
     <h1>Work Log</h1>
 
     <div class="input-row">
@@ -225,7 +234,7 @@
       <button class="summary-btn" _="on click call showSummary()">
         Generate Summary
       </button>
-      <button class="clear-btn" _="on click call clearAll()">Clear All</button>
+      <button class="clear-btn" _="on click if I match .confirm then call clearAll() call resetClearButton() else add .confirm put 'Click again to confirm' into my textContent end">Clear All</button>
     </div>
 
     <div class="summary-modal" id="summaryModal"
@@ -312,11 +321,17 @@
 
       function clearAll() {
         if (entries.length === 0) return;
-        if (!confirm("Clear all entries?")) return;
-
         entries = [];
         save();
         render();
+      }
+
+      function resetClearButton() {
+        const btn = document.querySelector(".clear-btn");
+        if (btn) {
+          btn.classList.remove("confirm");
+          btn.textContent = "Clear All";
+        }
       }
 
       function showSummary() {
