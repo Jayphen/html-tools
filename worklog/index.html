@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Work Log</title>
+    <script src="https://unpkg.com/hyperscript.org@0.9.14"></script>
     <style>
       * {
         box-sizing: border-box;
@@ -211,8 +212,9 @@
         id="taskInput"
         placeholder="What are you working on?"
         autofocus
+        _="on keypress if event.key is 'Enter' call addEntry()"
       />
-      <button class="add-btn" onclick="addEntry()">Add</button>
+      <button class="add-btn" _="on click call addEntry()">Add</button>
     </div>
 
     <div class="entries" id="entries">
@@ -220,19 +222,21 @@
     </div>
 
     <div class="actions">
-      <button class="summary-btn" onclick="showSummary()">
+      <button class="summary-btn" _="on click call showSummary()">
         Generate Summary
       </button>
-      <button class="clear-btn" onclick="clearAll()">Clear All</button>
+      <button class="clear-btn" _="on click call clearAll()">Clear All</button>
     </div>
 
-    <div class="summary-modal" id="summaryModal" onclick="closeModal(event)">
-      <div class="summary-content" onclick="event.stopPropagation()">
+    <div class="summary-modal" id="summaryModal"
+         _="on click if target is me call closeSummary()
+            on keydown if event.key is 'Escape' call closeSummary()">
+      <div class="summary-content">
         <h2>Today's Summary</h2>
         <div class="summary-text" id="summaryText"></div>
         <div class="modal-actions">
-          <button class="close-btn" onclick="closeSummary()">Close</button>
-          <button class="copy-btn" id="copyBtn" onclick="copySummary()">
+          <button class="close-btn" _="on click call closeSummary()">Close</button>
+          <button class="copy-btn" id="copyBtn" _="on click call copySummary()">
             Copy
           </button>
         </div>
@@ -344,12 +348,6 @@
         document.getElementById("summaryModal").classList.remove("show");
       }
 
-      function closeModal(event) {
-        if (event.target === document.getElementById("summaryModal")) {
-          closeSummary();
-        }
-      }
-
       function copySummary() {
         const text = document.getElementById("summaryText").textContent;
         navigator.clipboard.writeText(text).then(() => {
@@ -362,16 +360,6 @@
           }, 2000);
         });
       }
-
-      // Enter key to add
-      document.getElementById("taskInput").addEventListener("keypress", (e) => {
-        if (e.key === "Enter") addEntry();
-      });
-
-      // Escape to close modal
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeSummary();
-      });
 
       // Initial render
       render();
