@@ -350,12 +350,12 @@
         const bullets = entries
           .slice()
           .reverse()
-          .map((e) => `• ${e.text}`)
-          .join("\n");
+          .map((e) => `• ${escapeHtml(e.text)}`)
+          .join("<br>");
 
-        const summary = `${today}\n\n${bullets}`;
+        const summary = `${today}<br><br>${bullets}`;
 
-        document.getElementById("summaryText").textContent = summary;
+        document.getElementById("summaryText").innerHTML = summary;
         document.getElementById("summaryModal").classList.add("show");
       }
 
@@ -364,7 +364,22 @@
       }
 
       function copySummary() {
-        const text = document.getElementById("summaryText").textContent;
+        // Reconstruct text with newlines for clipboard
+        const today = new Date().toLocaleDateString("en-AU", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+
+        const bullets = entries
+          .slice()
+          .reverse()
+          .map((e) => `• ${e.text}`)
+          .join("\n");
+
+        const text = `${today}\n\n${bullets}`;
+
         navigator.clipboard.writeText(text).then(() => {
           const btn = document.getElementById("copyBtn");
           btn.textContent = "Copied!";
