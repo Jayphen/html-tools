@@ -13,11 +13,20 @@
       body {
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f5f5f5;
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: 1fr auto;
+      }
+
+      .main-content {
         max-width: 600px;
         margin: 0 auto;
         padding: 20px;
-        background: #f5f5f5;
-        min-height: 100vh;
+        width: 100%;
+        overflow-y: auto;
       }
 
       h1 {
@@ -133,24 +142,6 @@
         background: #1565c0;
       }
 
-      .clear-btn {
-        background: #e0e0e0;
-        color: #666;
-      }
-
-      .clear-btn:hover {
-        background: #d0d0d0;
-      }
-
-      .clear-btn.confirm {
-        background: #e53935;
-        color: white;
-      }
-
-      .clear-btn.confirm:hover {
-        background: #c62828;
-      }
-
       .summary-modal {
         display: none;
         position: fixed;
@@ -210,32 +201,83 @@
       .copied {
         background: #43a047 !important;
       }
+
+      .calendar {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        padding: 12px;
+        background: #f5f5f5;
+        border-top: 1px solid #ddd;
+        justify-content: center;
+        max-height: 171px;
+        overflow-y: auto;
+      }
+
+      .date-square {
+        width: 45px;
+        height: 45px;
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .date-square:hover {
+        border-color: #666;
+        transform: translateY(-2px);
+      }
+
+      .date-square.active {
+        border-color: #1976d2;
+        background: #e3f2fd;
+      }
+
+      .date-square .day {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .date-square .month {
+        font-size: 0.6rem;
+        color: #999;
+        text-transform: uppercase;
+      }
     </style>
   </head>
-  <body _="on click if target does not match .clear-btn then call resetClearButton()">
-    <h1>Work Log</h1>
+  <body>
+    <div class="main-content">
+      <h1>Work Log</h1>
 
-    <div class="input-row">
-      <input
-        type="text"
-        id="taskInput"
-        placeholder="What are you working on?"
-        autofocus
-        _="on keypress if event.key is 'Enter' call addEntry()"
-      />
-      <button class="add-btn" _="on click call addEntry()">Add</button>
+      <div class="input-row">
+        <input
+          type="text"
+          id="taskInput"
+          placeholder="What are you working on?"
+          autofocus
+          _="on keypress if event.key is 'Enter' call addEntry()"
+        />
+        <button class="add-btn" _="on click call addEntry()">Add</button>
+      </div>
+
+      <div class="entries" id="entries">
+        <div class="empty">No entries yet. Start logging your work.</div>
+      </div>
+
+      <div class="actions">
+        <button class="summary-btn" _="on click call showSummary()">
+          Generate Summary
+        </button>
+      </div>
     </div>
 
-    <div class="entries" id="entries">
-      <div class="empty">No entries yet. Start logging your work.</div>
-    </div>
-
-    <div class="actions">
-      <button class="summary-btn" _="on click call showSummary()">
-        Generate Summary
-      </button>
-      <button class="clear-btn" _="on click if I match .confirm then call clearAll() call resetClearButton() else add .confirm put 'Click again to confirm' into my textContent end">Clear All</button>
-    </div>
+    <div class="calendar" id="calendar"></div>
 
     <div class="summary-modal" id="summaryModal"
          _="on click if target is me call closeSummary()
@@ -254,6 +296,34 @@
 
     <script>
       let entries = JSON.parse(localStorage.getItem("worklog_entries") || "[]");
+      let currentDate = getDateKey(new Date());
+
+      function getDateKey(date) {
+        const d = new Date(date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+
+      function formatDateSquare(dateKey) {
+        const [year, month, day] = dateKey.split("-");
+        const date = new Date(year, month - 1, day);
+        return {
+          day: day,
+          month: date.toLocaleDateString("en-AU", { month: "short" }),
+        };
+      }
+
+      function getEntriesByDate() {
+        return entries.reduce((acc, entry) => {
+          const key = getDateKey(entry.time);
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(entry);
+          return acc;
+        }, {});
+      }
+
+      function getCurrentEntries() {
+        return entries.filter((e) => getDateKey(e.time) === currentDate);
+      }
 
       function save() {
         localStorage.setItem("worklog_entries", JSON.stringify(entries));
@@ -268,25 +338,27 @@
 
       function render() {
         const container = document.getElementById("entries");
+        const currentEntries = getCurrentEntries();
 
-        if (entries.length === 0) {
+        if (currentEntries.length === 0) {
           container.innerHTML =
-            '<div class="empty">No entries yet. Start logging your work.</div>';
+            '<div class="empty">No entries for this date. Start logging your work.</div>';
           return;
         }
 
-        container.innerHTML = entries
-          .map(
-            (entry, i) => `
+        container.innerHTML = currentEntries
+          .map((entry) => {
+            const globalIndex = entries.indexOf(entry);
+            return `
                 <div class="entry">
                     <div class="entry-content">
                         <div class="entry-text">${escapeHtml(entry.text)}</div>
                         <div class="entry-time">${formatTime(entry.time)}</div>
                     </div>
-                    <button class="delete-btn" onclick="deleteEntry(${i})">×</button>
+                    <button class="delete-btn" onclick="deleteEntry(${globalIndex})">×</button>
                 </div>
-            `,
-          )
+            `;
+          })
           .join("");
       }
 
@@ -309,6 +381,7 @@
 
         save();
         render();
+        renderCalendar();
         input.value = "";
         input.focus();
       }
@@ -317,43 +390,62 @@
         entries.splice(index, 1);
         save();
         render();
+        renderCalendar();
       }
 
-      function clearAll() {
-        if (entries.length === 0) return;
-        entries = [];
-        save();
-        render();
-      }
+      function renderCalendar() {
+        const container = document.getElementById("calendar");
+        const byDate = getEntriesByDate();
+        const dates = Object.keys(byDate).sort().reverse();
 
-      function resetClearButton() {
-        const btn = document.querySelector(".clear-btn");
-        if (btn) {
-          btn.classList.remove("confirm");
-          btn.textContent = "Clear All";
+        if (dates.length === 0) {
+          container.innerHTML = "";
+          return;
         }
+
+        container.innerHTML = dates
+          .map((dateKey) => {
+            const { day, month } = formatDateSquare(dateKey);
+            const isActive = dateKey === currentDate ? "active" : "";
+            return `
+              <div class="date-square ${isActive}" onclick="switchToDate('${dateKey}')">
+                <div class="day">${day}</div>
+                <div class="month">${month}</div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function switchToDate(dateKey) {
+        currentDate = dateKey;
+        render();
+        renderCalendar();
       }
 
       function showSummary() {
-        if (entries.length === 0) {
+        const currentEntries = getCurrentEntries();
+        if (currentEntries.length === 0) {
           alert("No entries to summarise.");
           return;
         }
 
-        const today = new Date().toLocaleDateString("en-AU", {
+        const [year, month, day] = currentDate.split("-");
+        const date = new Date(year, month - 1, day);
+        const dateStr = date.toLocaleDateString("en-AU", {
           weekday: "long",
           day: "numeric",
           month: "long",
           year: "numeric",
         });
 
-        const bullets = entries
+        const bullets = currentEntries
           .slice()
           .reverse()
           .map((e) => `• ${escapeHtml(e.text)}`)
           .join("<br>");
 
-        const summary = `${today}<br><br>${bullets}`;
+        const summary = `${dateStr}<br><br>${bullets}`;
 
         document.getElementById("summaryText").innerHTML = summary;
         document.getElementById("summaryModal").classList.add("show");
@@ -364,21 +456,13 @@
       }
 
       function copySummary() {
-        // Reconstruct text with newlines for clipboard
-        const today = new Date().toLocaleDateString("en-AU", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
-
-        const bullets = entries
+        // Copy only the bullet list, without the date
+        const currentEntries = getCurrentEntries();
+        const text = currentEntries
           .slice()
           .reverse()
           .map((e) => `• ${e.text}`)
           .join("\n");
-
-        const text = `${today}\n\n${bullets}`;
 
         navigator.clipboard.writeText(text).then(() => {
           const btn = document.getElementById("copyBtn");
@@ -391,8 +475,18 @@
         });
       }
 
+      // Automatically switch to today if it's a new day
+      function checkAndSwitchToToday() {
+        const today = getDateKey(new Date());
+        if (currentDate !== today) {
+          currentDate = today;
+        }
+      }
+
       // Initial render
+      checkAndSwitchToToday();
       render();
+      renderCalendar();
     </script>
   </body>
 </html>
